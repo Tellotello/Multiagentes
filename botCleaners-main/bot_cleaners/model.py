@@ -38,7 +38,8 @@ class RobotLimpieza(Agent):
  
     def seleccionar_nueva_pos(self, lista_de_vecinos):
       
-        vecinos_sin_muebles = [vecino for vecino in lista_de_vecinos if not isinstance(vecino, Mueble)]
+        vecinos_sin_muebles = [vecino for vecino in lista_de_vecinos if not isinstance(vecino, Mueble) and not isinstance(vecino, Cargador)]
+
         if vecinos_sin_muebles:
             self.sig_pos = self.random.choice(vecinos_sin_muebles).pos
         else:
@@ -100,11 +101,14 @@ class Habitacion(Model):
         self.schedule = SimultaneousActivation(self)
 
         posiciones_disponibles = [pos for _, pos in self.grid.coord_iter()]
+        posiciones_cargadores = [(int(M/4),int(N/4)),(int(M/4),int(N/4)*3),(int(M/4)*3,int(N/4)),(int(M/4)*3,int(N/4)*3)]
+
 
         # Posicionamiento de muebles
         num_muebles = int(M * N * porc_muebles)
         posiciones_muebles = self.random.sample(posiciones_disponibles, k=num_muebles)
-        numCargadores = 8
+        
+        numCargadores = 4
         posiciones_cargadores = self.random.sample(posiciones_disponibles, k=numCargadores)
 
         for id, pos in enumerate(posiciones_muebles):
@@ -135,7 +139,7 @@ class Habitacion(Model):
 
         # Posicionamiento de cargadores
         
-        for id, pos in enumerate(posiciones_cargadores):
+        for id, pos in enumerate(posiciones_cargadores.copy()):
             cargador = Cargador(int(f"{num_agentes}0{id}") + 1, self)
             self.grid.place_agent(cargador,pos)
             self.schedule.add(cargador)
