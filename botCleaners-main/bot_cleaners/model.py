@@ -42,6 +42,33 @@ class RobotLimpieza(Agent):
         vecinos = self.model.grid.get_neighbors(
             self.pos, moore=True, include_center=False)
 
+        if self.carga < 20:
+            cargadores = self.model.get_posiciones_cargadores()
+            if cargadores:
+                min_distance = float('inf')
+                nearest_cargador = None
+
+                for cargador in cargadores:
+                    distance = abs(self.pos[0] - cargador[0]) + abs(self.pos[1] - cargador[1])
+                    if distance < min_distance:
+                        min_distance = distance
+                        nearest_cargador = cargador
+            
+                if nearest_cargador:
+
+                    next_x = self.pos[0] + (1 if nearest_cargador[0] > self.pos[0] else -1)
+                    next_y = self.pos[1] + (1 if nearest_cargador[1] > self.pos[1] else -1)
+
+                    next_x = max(0, min(self.model.grid.width - 1, next_x))
+                    next_y = max(0, min(self.model.grid.height - 1, next_y))
+
+                    self.sig_pos = (next_x, next_y)
+                    print("BUSCANDO CARGADOR")
+                    print("SIG POS PARA CARGADOR: ", self.sig_pos)
+                    return
+    
+
+
         if vecinos_sin_muebles:
             self.sig_pos = self.random.choice(vecinos_sin_muebles).pos
         else:
@@ -156,7 +183,7 @@ class Habitacion(Model):
                  ):
         
         
-    
+
         self.num_agentes = num_agentes
         self.porc_celdas_sucias = porc_celdas_sucias
         self.porc_muebles = porc_muebles
@@ -238,6 +265,14 @@ class Habitacion(Model):
                     dirty_cells.append(obj)
         return dirty_cells
 
+
+    def get_posiciones_cargadores(self):
+        cargadores_pos = []
+        for (content, _) in self.grid.coord_iter():
+            for obj in content:
+                if isinstance(obj, Cargador):
+                    cargadores_pos.append(obj.pos)
+        return cargadores_pos
     def step(self):
         self.datacollector.collect(self)
 
