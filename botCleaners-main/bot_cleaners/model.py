@@ -38,29 +38,57 @@ class RobotLimpieza(Agent):
 
  
     def seleccionar_nueva_pos(self, lista_de_vecinos):
-      
         vecinos_sin_muebles = [vecino for vecino in lista_de_vecinos if not isinstance(vecino, Mueble) and not isinstance(vecino, Cargador)]
-
-        
+        vecinos = self.model.grid.get_neighbors(
+            self.pos, moore=True, include_center=False)
 
         if vecinos_sin_muebles:
             self.sig_pos = self.random.choice(vecinos_sin_muebles).pos
         else:
             self.sig_pos = self.pos
 
+        sucias = self.model.get_all_dirty_cells()
+
+        if sucias:
+            min_distance = float('inf')
+            nearest_dirty_cell = None
+
+            for celda in sucias:
+                distance = abs(self.pos[0] - celda.pos[0]) + abs(self.pos[1] - celda.pos[1])
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_dirty_cell = celda
+
+            if nearest_dirty_cell:
+                # Calculate the next position based on the current position
+                next_x = self.pos[0] + (1 if nearest_dirty_cell.pos[0] > self.pos[0] else -1)
+                next_y = self.pos[1] + (1 if nearest_dirty_cell.pos[1] > self.pos[1] else -1)
+
+                # Ensure the next position is within grid bounds
+                next_x = max(0, min(self.model.grid.width - 1, next_x))
+                next_y = max(0, min(self.model.grid.height - 1, next_y))
+
+                self.sig_pos = (next_x, next_y)
+                print("SIG POS: ", self.sig_pos)
+
+
+
         
+
+
+    
+    
+
+        
+    
 
     @staticmethod
     def buscar_celdas_sucia(lista_de_vecinos):
         # #Opción 1
-        # return [vecino for vecino in lista_de_vecinos
-        #                 if isinstance(vecino, Celda) and vecino.sucia]
-        # #Opción 2
-        celdas_sucias = list()
-        for vecino in lista_de_vecinos:
-            if isinstance(vecino, Celda) and vecino.sucia:
-                celdas_sucias.append(vecino)
-        return celdas_sucias
+        return [vecino for vecino in lista_de_vecinos
+        if isinstance(vecino, Celda) and vecino.sucia]
+       
+        
 
     def initialize_available_neighbors(self):
         neighbors = self.model.grid.get_neighbors(
@@ -128,6 +156,7 @@ class Habitacion(Model):
                  ):
         
         
+    
         self.num_agentes = num_agentes
         self.porc_celdas_sucias = porc_celdas_sucias
         self.porc_muebles = porc_muebles
@@ -192,12 +221,22 @@ class Habitacion(Model):
             self.schedule.add(cargador)
             posiciones_cargadores.remove(pos)
 
+        
+       
 
-
+        self.celdas_sucias = []
         self.datacollector = DataCollector(
             model_reporters={"Grid": get_grid, "Cargas": get_cargas,
                              "CeldasSucias": get_sucias},
         )
+
+    def get_all_dirty_cells(self):
+        dirty_cells = []
+        for (content, _) in self.grid.coord_iter():
+            for obj in content:
+                if isinstance(obj, Celda) and obj.sucia:
+                    dirty_cells.append(obj)
+        return dirty_cells
 
     def step(self):
         self.datacollector.collect(self)
@@ -210,6 +249,9 @@ class Habitacion(Model):
                 if isinstance(obj, Celda) and obj.sucia:
                     return False
         return True
+
+    def model_get_sucias(self):
+        return self.celdas_sucias
 
 
 def get_grid(model: Model) -> np.ndarray:
