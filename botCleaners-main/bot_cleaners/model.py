@@ -29,6 +29,7 @@ class RobotLimpieza(Agent):
         self.sig_pos = None
         self.movimientos = 0
         self.carga = 100
+        self.available_neighbors = []
 
     def limpiar_una_celda(self, lista_de_celdas_sucias):
         celda_a_limpiar = self.random.choice(lista_de_celdas_sucias)
@@ -40,10 +41,14 @@ class RobotLimpieza(Agent):
       
         vecinos_sin_muebles = [vecino for vecino in lista_de_vecinos if not isinstance(vecino, Mueble) and not isinstance(vecino, Cargador)]
 
+        
+
         if vecinos_sin_muebles:
             self.sig_pos = self.random.choice(vecinos_sin_muebles).pos
         else:
             self.sig_pos = self.pos
+
+        
 
     @staticmethod
     def buscar_celdas_sucia(lista_de_vecinos):
@@ -57,6 +62,15 @@ class RobotLimpieza(Agent):
                 celdas_sucias.append(vecino)
         return celdas_sucias
 
+    def initialize_available_neighbors(self):
+        neighbors = self.model.grid.get_neighbors(
+            self.pos, moore=True, include_center=False)
+        self.available_neighbors = [
+            vecino for vecino in neighbors if not isinstance(vecino, Mueble) and not isinstance(vecino, Cargador)
+        ]
+
+
+
     def step(self):
         vecinos = self.model.grid.get_neighbors(
             self.pos, moore=True, include_center=False)
@@ -68,12 +82,30 @@ class RobotLimpieza(Agent):
                 self.carga = 100
 
 
-        celdas_sucias = self.buscar_celdas_sucia(vecinos)
-
-        if len(celdas_sucias) == 0:
-            self.seleccionar_nueva_pos(vecinos)
+        if self.carga < 20:
+            cargadores = [vecino for vecino in vecinos if isinstance(vecino, Cargador)]
+            if cargadores:
+                self.sig_pos = self.random.choice(cargadores).pos
+            else:
+                self.initialize_available_neighbors()
+                self.seleccionar_nueva_pos(self.available_neighbors)
         else:
-            self.limpiar_una_celda(celdas_sucias)
+
+            clean_neighbors = [
+                neighbor for neighbor in self.available_neighbors if not isinstance(neighbor, Celda) or not neighbor.sucia
+            ]
+
+            if len(clean_neighbors) > 0:
+                self.seleccionar_nueva_pos(clean_neighbors)
+            else:
+                self.seleccionar_nueva_pos(self.available_neighbors)
+
+            celdas_sucias = self.buscar_celdas_sucia(vecinos)
+
+            if len(celdas_sucias) == 0:
+                self.seleccionar_nueva_pos(vecinos)
+            else:
+                self.limpiar_una_celda(celdas_sucias)
 
     def advance(self):
         if self.pos != self.sig_pos:
@@ -90,9 +122,12 @@ class Habitacion(Model):
                  porc_celdas_sucias: float = 0.6,
                  porc_muebles: float = 0.1,
                  modo_pos_inicial: str = 'Fija',
+                 
+
                 
                  ):
-
+        
+        
         self.num_agentes = num_agentes
         self.porc_celdas_sucias = porc_celdas_sucias
         self.porc_muebles = porc_muebles
@@ -101,8 +136,20 @@ class Habitacion(Model):
         self.schedule = SimultaneousActivation(self)
 
         posiciones_disponibles = [pos for _, pos in self.grid.coord_iter()]
-        posiciones_cargadores = [(int(M/4),int(N/4)),(int(M/4),int(N/4)*3),(int(M/4)*3,int(N/4)),(int(M/4)*3,int(N/4)*3)]
+     
+        quad_width = M // 2
+        quad_height = N // 2
 
+        
+        posiciones_cargadores = [
+            (quad_width // 2, quad_height // 2),                    # Top-left quadrant
+            (quad_width + quad_width // 2, quad_height // 2),       # Top-right quadrant
+            (quad_width // 2, quad_height + quad_height // 2),      # Bottom-left quadrant
+            (quad_width + quad_width // 2, quad_height + quad_height // 2)  # Bottom-right quadrant
+        ]
+
+        for pos in posiciones_cargadores:
+            posiciones_disponibles.remove(pos)
 
         # Posicionamiento de muebles
         num_muebles = int(M * N * porc_muebles)
