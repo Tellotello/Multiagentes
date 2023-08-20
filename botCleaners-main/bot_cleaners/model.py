@@ -32,9 +32,21 @@ class RobotLimpieza(Agent):
         self.available_neighbors = []
 
     def limpiar_una_celda(self, lista_de_celdas_sucias):
-        celda_a_limpiar = self.random.choice(lista_de_celdas_sucias)
+        # Prioritize cells not in shared knowledge base
+        celdas_preferidas = [celda for celda in lista_de_celdas_sucias if celda.pos not in self.model.celdas_objetivo]
+        if celdas_preferidas:
+            celda_a_limpiar = self.random.choice(celdas_preferidas)
+        else:
+            celda_a_limpiar = self.random.choice(lista_de_celdas_sucias)
+        
+        if celda_a_limpiar.pos not in self.model.celdas_objetivo:
+            self.model.celdas_objetivo.append(celda_a_limpiar.pos)
+        
         celda_a_limpiar.sucia = False
         self.sig_pos = celda_a_limpiar.pos
+        # Update shared knowledge base after cleaning
+        if celda_a_limpiar.pos in self.model.celdas_objetivo:
+            self.model.celdas_objetivo.remove(celda_a_limpiar.pos)
 
  
     def seleccionar_nueva_pos(self, lista_de_vecinos):
@@ -130,6 +142,9 @@ class RobotLimpieza(Agent):
         vecinos = self.model.grid.get_neighbors(
             self.pos, moore=True, include_center=False)
 
+        vecinos_sin_muebles = [vecino for vecino in vecinos if not isinstance(vecino, Mueble)]
+        vecinos = vecinos_sin_muebles  # Update the vecinos list to exclude
+
         for vecino in vecinos:
             if isinstance(vecino, (Mueble, RobotLimpieza)):
                 vecinos.remove(vecino)
@@ -182,7 +197,7 @@ class Habitacion(Model):
                 
                  ):
         
-        
+        self.celdas_objetivo = []
 
         self.num_agentes = num_agentes
         self.porc_celdas_sucias = porc_celdas_sucias
@@ -203,6 +218,7 @@ class Habitacion(Model):
             (quad_width // 2, quad_height + quad_height // 2),      # Bottom-left quadrant
             (quad_width + quad_width // 2, quad_height + quad_height // 2)  # Bottom-right quadrant
         ]
+
 
         for pos in posiciones_cargadores:
             posiciones_disponibles.remove(pos)
@@ -274,8 +290,11 @@ class Habitacion(Model):
                     cargadores_pos.append(obj.pos)
         return cargadores_pos
     def step(self):
-        self.datacollector.collect(self)
+        # Update the shared knowledge base
+        sucias_actual = [celda.pos for celda in self.get_all_dirty_cells()]
+        self.celdas_objetivo = [pos for pos in self.celdas_objetivo if pos in sucias_actual]
 
+        self.datacollector.collect(self)
         self.schedule.step()
 
     def todoLimpio(self):
