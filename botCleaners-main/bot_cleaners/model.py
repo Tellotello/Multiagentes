@@ -32,7 +32,6 @@ class RobotLimpieza(Agent):
         self.available_neighbors = []
 
     def limpiar_una_celda(self, lista_de_celdas_sucias):
-        # Prioritize cells not in shared knowledge base
         celdas_preferidas = [celda for celda in lista_de_celdas_sucias if celda.pos not in self.model.celdas_objetivo]
         if celdas_preferidas:
             celda_a_limpiar = self.random.choice(celdas_preferidas)
@@ -44,7 +43,7 @@ class RobotLimpieza(Agent):
         
         celda_a_limpiar.sucia = False
         self.sig_pos = celda_a_limpiar.pos
-        # Update shared knowledge base after cleaning
+
         if celda_a_limpiar.pos in self.model.celdas_objetivo:
             self.model.celdas_objetivo.remove(celda_a_limpiar.pos)
 
@@ -99,11 +98,9 @@ class RobotLimpieza(Agent):
                     nearest_dirty_cell = celda
 
             if nearest_dirty_cell:
-                # Calculate the next position based on the current position
                 next_x = self.pos[0] + (1 if nearest_dirty_cell.pos[0] > self.pos[0] else -1)
                 next_y = self.pos[1] + (1 if nearest_dirty_cell.pos[1] > self.pos[1] else -1)
 
-                # Ensure the next position is within grid bounds
                 next_x = max(0, min(self.model.grid.width - 1, next_x))
                 next_y = max(0, min(self.model.grid.height - 1, next_y))
 
@@ -143,7 +140,7 @@ class RobotLimpieza(Agent):
             self.pos, moore=True, include_center=False)
 
         vecinos_sin_muebles = [vecino for vecino in vecinos if not isinstance(vecino, Mueble)]
-        vecinos = vecinos_sin_muebles  # Update the vecinos list to exclude
+        vecinos = vecinos_sin_muebles 
 
         for vecino in vecinos:
             if isinstance(vecino, (Mueble, RobotLimpieza)):
@@ -213,10 +210,10 @@ class Habitacion(Model):
 
         
         posiciones_cargadores = [
-            (quad_width // 2, quad_height // 2),                    # Top-left quadrant
-            (quad_width + quad_width // 2, quad_height // 2),       # Top-right quadrant
-            (quad_width // 2, quad_height + quad_height // 2),      # Bottom-left quadrant
-            (quad_width + quad_width // 2, quad_height + quad_height // 2)  # Bottom-right quadrant
+            (quad_width // 2, quad_height // 2),                    
+            (quad_width + quad_width // 2, quad_height // 2),      
+            (quad_width // 2, quad_height + quad_height // 2),      
+            (quad_width + quad_width // 2, quad_height + quad_height // 2)  
         ]
 
 
@@ -290,7 +287,6 @@ class Habitacion(Model):
                     cargadores_pos.append(obj.pos)
         return cargadores_pos
     def step(self):
-        # Update the shared knowledge base
         sucias_actual = [celda.pos for celda in self.get_all_dirty_cells()]
         self.celdas_objetivo = [pos for pos in self.celdas_objetivo if pos in sucias_actual]
 
